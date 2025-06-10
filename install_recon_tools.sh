@@ -30,6 +30,7 @@ fi
 
 echo -e "${BLUE}[*] Installing required tools...${RESET}"
 REQUIRED_PACKAGES=(git nmap whatweb gobuster ffuf hydra ncrack smbclient smbmap snmp ldap-utils rpcbind dnsutils nfs-common ftp gcc make python3-pip nuclei onesixtyone pandoc polenum ssh-audit)
+# openvas  # Commented out for now
 
 FAILED_PACKAGES=()
 for pkg in "${REQUIRED_PACKAGES[@]}"; do
@@ -45,65 +46,70 @@ for pkg in "${REQUIRED_PACKAGES[@]}"; do
   fi
 done
 
-# Extra git verification
-if ! sudo command -v git &>/dev/null; then
-  echo -e "${RED}[!] 'git' is missing from sudo PATH. Attempting to reinstall...${RESET}"
-  if sudo apt-get install -y --reinstall git > /dev/null; then
-    echo -e "${GREEN}[+] Reinstalled git successfully.${RESET}"
+# Metasploit Framework install (from apt or Rapid7 repo)
+echo -e "${BLUE}[*] Checking for Metasploit Framework...${RESET}"
+if command -v msfconsole >/dev/null 2>&1; then
+  echo -e "${YELLOW}[*] Metasploit is already installed: $(msfconsole --version 2>&1 | head -1)${RESET}"
+else
+  echo -e "${BLUE}[*] Installing Metasploit Framework...${RESET}"
+  if sudo apt-get install -y metasploit-framework > /dev/null 2>&1; then
+    echo -e "${GREEN}[+] Metasploit Framework installed via apt.${RESET}"
   else
-    echo -e "${RED}[!] Reinstallation of git failed. Check PATH or manually reinstall git.${RESET}"
+    echo -e "${YELLOW}[*] apt install failed, attempting Rapid7 installer...${RESET}"
+    curl https://raw.githubusercontent.com/rapid7/metasploit-framework/master/scripts/msfupdate.sh -o msfinstall.sh
+    chmod +x msfinstall.sh
+    sudo ./msfinstall.sh
+    rm msfinstall.sh
+    if command -v msfconsole >/dev/null 2>&1; then
+      echo -e "${GREEN}[+] Metasploit Framework installed successfully via Rapid7 installer.${RESET}"
+    else
+      echo -e "${RED}[!] Metasploit installation failed.${RESET}"
+      FAILED_PACKAGES+=("metasploit-framework")
+    fi
   fi
 fi
 
-if [ ${#FAILED_PACKAGES[@]} -eq 0 ]; then
-  echo -e "${GREEN}[+] All required APT packages installed successfully.${RESET}"
-else
-  echo -e "${RED}[!] Some packages failed: ${FAILED_PACKAGES[*]}${RESET}"
-fi
-
-# Git-based tools install
-echo -e "${BLUE}[*] Checking and installing additional tools (git-based)...${RESET}"
-
+# BloodHound install - COMMENTED OUT for future integration
+: '
+echo -e "${BLUE}[*] Installing BloodHound...${RESET}"
 TOOLS_DIR=~/recon-tools
 mkdir -p "$TOOLS_DIR"
-
-# 1. Nikto
-echo -e "${BLUE}[*] Installing nikto from source...${RESET}"
-if git clone --quiet https://github.com/sullo/nikto.git "$TOOLS_DIR/nikto"; then
-  chmod +x "$TOOLS_DIR/nikto/nikto.pl"
-  echo -e "${GREEN}[+] Nikto installed to $TOOLS_DIR/nikto${RESET}"
+if [ -d "$TOOLS_DIR/BloodHound" ]; then
+  echo -e "${YELLOW}[*] BloodHound repo already cloned.${RESET}"
 else
-  echo -e "${RED}[!] Failed to clone/install nikto.${RESET}"
+  if git clone --quiet https://github.com/BloodHoundAD/BloodHound.git "$TOOLS_DIR/BloodHound"; then
+    echo -e "${GREEN}[+] Cloned BloodHound to $TOOLS_DIR/BloodHound${RESET}"
+  else
+    echo -e "${RED}[!] Failed to clone BloodHound.${RESET}"
+    FAILED_PACKAGES+=("BloodHound")
+  fi
 fi
 
-# 2. Enum4linux
-echo -e "${BLUE}[*] Installing enum4linux...${RESET}"
-if git clone --quiet https://github.com/CiscoCXSecurity/enum4linux.git "$TOOLS_DIR/enum4linux"; then
-  chmod +x "$TOOLS_DIR/enum4linux/enum4linux.pl"
-  echo -e "${GREEN}[+] Enum4linux installed to $TOOLS_DIR/enum4linux${RESET}"
+echo -e "${BLUE}[*] Installing Node.js and npm for BloodHound...${RESET}"
+if command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
+  echo -e "${YELLOW}[*] Node.js and npm already installed.${RESET}"
 else
-  echo -e "${RED}[!] Failed to clone/install enum4linux.${RESET}"
+  curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+  if sudo apt-get install -y nodejs > /dev/null 2>&1; then
+    echo -e "${GREEN}[+] Node.js and npm installed successfully.${RESET}"
+  else
+    echo -e "${RED}[!] Failed to install Node.js and npm.${RESET}"
+    FAILED_PACKAGES+=("nodejs/npm for BloodHound")
+  fi
 fi
 
-# 3. SMTP-user-enum
-echo -e "${BLUE}[*] Installing smtp-user-enum...${RESET}"
-if git clone --quiet https://github.com/pentestmonkey/smtp-user-enum.git "$TOOLS_DIR/smtp-user-enum"; then
-  chmod +x "$TOOLS_DIR/smtp-user-enum/smtp-user-enum.pl"
-  echo -e "${GREEN}[+] smtp-user-enum installed to $TOOLS_DIR/smtp-user-enum${RESET}"
+echo -e "${BLUE}[*] Building BloodHound...${RESET}"
+cd "$TOOLS_DIR/BloodHound" || exit
+if npm install > /dev/null 2>&1 && npm run build > /dev/null 2>&1; then
+  echo -e "${GREEN}[+] BloodHound built successfully.${RESET}"
 else
-  echo -e "${RED}[!] Failed to clone/compile smtp-user-enum.${RESET}"
+  echo -e "${RED}[!] Failed to build BloodHound.${RESET}"
+  FAILED_PACKAGES+=("BloodHound build")
 fi
+cd - > /dev/null || exit
+'
 
-# 4. DNSenum
-echo -e "${BLUE}[*] Installing dnsenum...${RESET}"
-if git clone --quiet https://github.com/fwaeytens/dnsenum.git "$TOOLS_DIR/dnsenum"; then
-  chmod +x "$TOOLS_DIR/dnsenum/dnsenum.pl"
-  echo -e "${GREEN}[+] dnsenum installed to $TOOLS_DIR/dnsenum${RESET}"
-else
-  echo -e "${RED}[!] Failed to clone/install dnsenum.${RESET}"
-fi
-
-# Perl Conflict Check
+# Perl Conflict Check (unchanged)
 echo -e "${BLUE}[*] Checking for Perl dependency issues...${RESET}"
 if sudo apt-get install -f -y > /dev/null; then
   echo -e "${GREEN}[+] No broken dependencies found.${RESET}"
@@ -125,7 +131,7 @@ else
   echo -e "${GREEN}[+] No Perl dependency issues detected.${RESET}"
 fi
 
-# Rust Install
+# Rust Install (unchanged)
 echo -e "${BLUE}[*] Installing Rust toolchain...${RESET}"
 if command -v rustc >/dev/null 2>&1; then
   echo -e "${YELLOW}[*] Rust is already installed: $(rustc --version)${RESET}"
