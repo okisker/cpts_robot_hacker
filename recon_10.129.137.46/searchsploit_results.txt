@@ -1,0 +1,56 @@
+### vsftpd 3.0.3
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ---------------------------------
+ Exploit Title                                                                                                                                                                  |  Path
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ---------------------------------
+[01;31m[Kvsftpd[m[K [01;31m[K3.0.3[m[K - Remote Denial of Service                                                                                                                                         | multiple/remote/49719.py
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ---------------------------------
+Shellcodes: No Results
+
+### OpenSSH 8.2p1 Ubuntu 4ubuntu0.5 (Ubuntu Linux; protocol 2.0)
+Exploits: No Results
+Shellcodes: No Results
+
+### Postfix smtpd
+Exploits: No Results
+Shellcodes: No Results
+
+### (unknown banner: 1337_HTB_DNS)
+Exploits: No Results
+Shellcodes: No Results
+
+### Apache httpd 2.4.41 ((Ubuntu))
+Exploits: No Results
+Shellcodes: No Results
+
+### Dovecot pop3d
+Exploits: No Results
+Shellcodes: No Results
+
+### 2-4 (RPC #100000)
+Exploits: No Results
+Shellcodes: No Results
+
+### 111/tcp rpcbind
+Exploits: No Results
+Shellcodes: No Results
+
+### 111/tcp6 rpcbind
+Exploits: No Results
+Shellcodes: No Results
+
+### Dovecot imapd (Ubuntu)
+Exploits: No Results
+Shellcodes: No Results
+
+### Dovecot imapd (Ubuntu)
+Exploits: No Results
+Shellcodes: No Results
+
+### Dovecot pop3d
+Exploits: No Results
+Shellcodes: No Results
+
+### Apache httpd 2.4.41 ((Ubuntu))
+Exploits: No Results
+Shellcodes: No Results
+

@@ -1,0 +1,5 @@
+/images              [36m (Status: 301)[0m [Size: 315][34m [--> http://10.129.137.46/images/][0m
+/css                 [36m (Status: 301)[0m [Size: 312][34m [--> http://10.129.137.46/css/][0m
+/fonts               [36m (Status: 301)[0m [Size: 314][34m [--> http://10.129.137.46/fonts/][0m
+/monitoring          [36m (Status: 301)[0m [Size: 319][34m [--> http://10.129.137.46/monitoring/][0m
+/server-status       [33m (Status: 403)[0m [Size: 278]

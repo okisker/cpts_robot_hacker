@@ -1,0 +1,5 @@
+
+; <<>> DiG 9.20.9-1-Debian <<>> axfr @10.129.137.46 example.com
+; (1 server found)
+;; global options: +cmd
+; Transfer failed.

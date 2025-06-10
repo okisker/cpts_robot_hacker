@@ -1,0 +1,17 @@
+# Hydra v9.5 run at 2025-06-09 21:11:40 on 10.129.137.46 ftp (hydra -l anonymous -P /usr/share/wordlists/rockyou.txt -o recon_10.129.137.46/ftp_hydra.txt ftp://10.129.137.46)
+[21][ftp] host: 10.129.137.46   login: anonymous   password: 12345
+[21][ftp] host: 10.129.137.46   login: anonymous   password: 12345678
+[21][ftp] host: 10.129.137.46   login: anonymous   password: babygirl
+[21][ftp] host: 10.129.137.46   login: anonymous   password: monkey
+[21][ftp] host: 10.129.137.46   login: anonymous   password: 123456
+[21][ftp] host: 10.129.137.46   login: anonymous   password: 123456789
+[21][ftp] host: 10.129.137.46   login: anonymous   password: password
+[21][ftp] host: 10.129.137.46   login: anonymous   password: iloveyou
+[21][ftp] host: 10.129.137.46   login: anonymous   password: princess
+[21][ftp] host: 10.129.137.46   login: anonymous   password: 1234567
+[21][ftp] host: 10.129.137.46   login: anonymous   password: rockyou
+[21][ftp] host: 10.129.137.46   login: anonymous   password: abc123
+[21][ftp] host: 10.129.137.46   login: anonymous   password: nicole
+[21][ftp] host: 10.129.137.46   login: anonymous   password: daniel
+[21][ftp] host: 10.129.137.46   login: anonymous   password: lovely
+[21][ftp] host: 10.129.137.46   login: anonymous   password: jessica
