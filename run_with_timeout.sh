@@ -57,19 +57,19 @@ run_with_timeout_skip() {
 
 # NMAP
 # TCP Full scan
-run_with_timeout_skip "nmap -p- -T4 -oN \"$OUTDIR/nmap_tcp.txt\" \"$TARGET\""
+nmap -p- -T4 -oN \"$OUTDIR/nmap_tcp.txt\" \"$TARGET\"
 
 # Extract TCP ports
 TCP_PORTS=$(grep '/tcp' "$OUTDIR/nmap_tcp.txt" | cut -d '/' -f1 | paste -sd ',' -)
 
 # TCP Service detection
-run_with_timeout_skip "nmap -sC -sV -p $TCP_PORTS -oN \"$OUTDIR/nmap_tcp_services.txt\" \"$TARGET\""
+nmap -sC -sV -p $TCP_PORTS -oN \"$OUTDIR/nmap_tcp_services.txt\" \"$TARGET\"
 
 # UDP Top 100 scan (adjust as needed)
-run_with_timeout_skip "nmap -sU --top-ports 100 -T4 -oN \"$OUTDIR/nmap_udp.txt\" \"$TARGET\""
+nmap -sU --top-ports 100 -T4 -oN \"$OUTDIR/nmap_udp.txt\" \"$TARGET\"
 
 # Save combined nmap services output for later checks
-cat "$OUTDIR/nmap_tcp_services.txt" "$OUTDIR/nmap_udp.txt" > "$OUTDIR/nmap_services.txt"
+cat "$OUTDIR/nmap_tcp_services.txt" "$OUTDIR/nmap_udp.txt" "$OUTDIR/nmap_tcp.txt" > "$OUTDIR/nmap_services.txt"
 
 # Enumeration tools
 function run_enum_tools {
