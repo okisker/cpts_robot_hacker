@@ -29,6 +29,7 @@ else
 fi
 
 echo -e "${BLUE}[*] Installing required tools...${RESET}"
+
 REQUIRED_PACKAGES=(git nmap whatweb gobuster ffuf hydra ncrack smbclient smbmap snmp ldap-utils rpcbind dnsutils nfs-common ftp gcc make python3-pip nuclei onesixtyone pandoc polenum ssh-audit)
 # openvas  # Commented out for now
 
@@ -109,7 +110,24 @@ fi
 cd - > /dev/null || exit
 '
 
-# Perl Conflict Check (unchanged)
+# 5. OpenVAS (commented out for now)
+# echo -e "${BLUE}[*] Installing OpenVAS...${RESET}"
+# if sudo apt-get install -y gvm > /dev/null; then
+#   echo -e "${GREEN}[+] OpenVAS installed.${RESET}"
+#   sudo gvm-setup && sudo gvm-check-setup
+# else
+#   echo -e "${RED}[!] Failed to install OpenVAS.${RESET}"
+# fi
+
+# 6. BloodHound (commented out for now)
+# echo -e "${BLUE}[*] Installing BloodHound...${RESET}"
+# if sudo apt-get install -y bloodhound > /dev/null; then
+#   echo -e "${GREEN}[+] BloodHound installed.${RESET}"
+# else
+#   echo -e "${RED}[!] Failed to install BloodHound.${RESET}"
+# fi
+
+# Perl Conflict Check
 echo -e "${BLUE}[*] Checking for Perl dependency issues...${RESET}"
 if sudo apt-get install -f -y > /dev/null; then
   echo -e "${GREEN}[+] No broken dependencies found.${RESET}"
