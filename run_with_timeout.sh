@@ -37,18 +37,39 @@ fi
 
 mkdir -p "$OUTDIR"
 
+# Add run_with_timeout_skip function here
+run_with_timeout_skip() {
+    local cmd="$1"
+    local timeout_duration="${2:-300}"  # default 300 seconds = 5 minutes
+
+    trap 'echo -e "\n[!] Skipping current command due to Ctrl+C"; return 130' SIGINT
+
+    timeout "${timeout_duration}s" bash -c "$cmd"
+    local status=$?
+
+    if [ $status -eq 124 ]; then
+        echo "[!] Command timed out after ${timeout_duration}s and was killed."
+    fi
+
+    trap - SIGINT
+    return $status
+}
+
 # NMAP
 # TCP Full scan
-nmap -p- -T4 -oN "$OUTDIR/nmap_tcp.txt" "$TARGET"
+run_with_timeout_skip "nmap -p- -T4 -oN \"$OUTDIR/nmap_tcp.txt\" \"$TARGET\""
 
 # Extract TCP ports
 TCP_PORTS=$(grep '/tcp' "$OUTDIR/nmap_tcp.txt" | cut -d '/' -f1 | paste -sd ',' -)
 
 # TCP Service detection
-nmap -sC -sV -p $TCP_PORTS -oN "$OUTDIR/nmap_tcp_services.txt" "$TARGET"
+run_with_timeout_skip "nmap -sC -sV -p $TCP_PORTS -oN \"$OUTDIR/nmap_tcp_services.txt\" \"$TARGET\""
 
 # UDP Top 100 scan (adjust as needed)
-nmap -sU --top-ports 100 -T4 -oN "$OUTDIR/nmap_udp.txt" "$TARGET"
+run_with_timeout_skip "nmap -sU --top-ports 100 -T4 -oN \"$OUTDIR/nmap_udp.txt\" \"$TARGET\""
+
+# Save combined nmap services output for later checks
+cat "$OUTDIR/nmap_tcp_services.txt" "$OUTDIR/nmap_udp.txt" > "$OUTDIR/nmap_services.txt"
 
 # Enumeration tools
 function run_enum_tools {
@@ -59,83 +80,84 @@ function run_enum_tools {
         echo "[+] HTTP detected"
         echo "http://$TARGET" > urls.txt
         echo "https://$TARGET" >> urls.txt
-        whatweb -i urls.txt --log-verbose="$OUTDIR/whatweb.txt"
-        httpx -l urls.txt -status-code -tech-detect -title -web-server -favicon -o "$OUTDIR/httpx.txt"
-        gobuster dir -u http://$TARGET -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -o "$OUTDIR/gobuster_http.txt"
-        gobuster dir -u https://$TARGET -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -o "$OUTDIR/gobuster_https.txt"
-        nuclei -list urls.txt -silent -o "$NUCLEI_OUT"
-        nikto -h urls.txt -output "$OUTDIR/nikto.txt" -Format txt
-        feroxbuster -u urls.txt -o "$OUTDIR/feroxbuster.txt"
-        ffuf -u http://$TARGET/FUZZ -w /usr/share/wordlists/dirb/common.txt -o "$OUTDIR/ffuf.txt" -c -fc 404,403
-        ffuf -u https://$TARGET/FUZZ -w /usr/share/wordlists/dirb/common.txt -o "$OUTDIR/ffufs.txt" -c -fc 404,403
+
+        run_with_timeout_skip "whatweb -i urls.txt --log-verbose=\"$OUTDIR/whatweb.txt\""
+        run_with_timeout_skip "httpx -l urls.txt -status-code -tech-detect -title -web-server -favicon -o \"$OUTDIR/httpx.txt\""
+        run_with_timeout_skip "gobuster dir -u http://$TARGET -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -o \"$OUTDIR/gobuster_http.txt\""
+        run_with_timeout_skip "gobuster dir -u https://$TARGET -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -o \"$OUTDIR/gobuster_https.txt\""
+        run_with_timeout_skip "nuclei -list urls.txt -silent -o \"$NUCLEI_OUT\""
+        run_with_timeout_skip "nikto -h urls.txt -output \"$OUTDIR/nikto.txt\" -Format txt"
+        run_with_timeout_skip "feroxbuster -u urls.txt -o \"$OUTDIR/feroxbuster.txt\""
+        run_with_timeout_skip "ffuf -u http://$TARGET/FUZZ -w /usr/share/wordlists/dirb/common.txt -o \"$OUTDIR/ffuf.txt\" -c -fc 404,403"
+        run_with_timeout_skip "ffuf -u https://$TARGET/FUZZ -w /usr/share/wordlists/dirb/common.txt -o \"$OUTDIR/ffufs.txt\" -c -fc 404,403"
     fi
 
     # FTP
     if grep -qi "ftp" "$OUTDIR/nmap_services.txt"; then
         echo "[+] FTP detected"
         echo -e "open $TARGET\nanonymous\nanonymous\nls\nbye" | ftp -n > "$OUTDIR/ftp_check.txt"
-        hydra -l anonymous -P /usr/share/wordlists/rockyou.txt -t 4 ftp://$TARGET -o "$OUTDIR/ftp_hydra.txt"
+        run_with_timeout_skip "hydra -l anonymous -P /usr/share/wordlists/rockyou.txt -t 4 ftp://$TARGET -o \"$OUTDIR/ftp_hydra.txt\""
     fi
 
     # SMB
     if grep -qi "smb" "$OUTDIR/nmap_services.txt" || grep -qi "netbios" "$OUTDIR/nmap_services.txt"; then
         echo "[+] SMB detected"
-        enum4linux -a "$TARGET" > "$OUTDIR/enum4linux.txt"
-        smbclient -L \\$TARGET -N > "$OUTDIR/smbclient.txt"
-        crackmapexec smb $TARGET --shares > "$OUTDIR/cme_shares.txt"
-        smbmap -H $TARGET > "$OUTDIR/smbmap.txt"
+        run_with_timeout_skip "enum4linux -a \"$TARGET\" > \"$OUTDIR/enum4linux.txt\""
+        run_with_timeout_skip "smbclient -L \\\\$TARGET -N > \"$OUTDIR/smbclient.txt\""
+        run_with_timeout_skip "crackmapexec smb $TARGET --shares > \"$OUTDIR/cme_shares.txt\""
+        run_with_timeout_skip "smbmap -H $TARGET > \"$OUTDIR/smbmap.txt\""
     fi
 
-    # SSH I stopped checking syntax here
+    # SSH
     if grep -qi "ssh" "$OUTDIR/nmap_services.txt"; then
         echo "[+] SSH detected"
-        ssh -v -o BatchMode=yes -o ConnectTimeout=3 user@$TARGET 2>&1 | grep "SSH-" > "$OUTDIR/ssh_version.txt"
-        ssh-audit $TARGET > "$OUTDIR/ssh_audit.txt"
+        run_with_timeout_skip "ssh -v -o BatchMode=yes -o ConnectTimeout=3 user@$TARGET 2>&1 | grep 'SSH- > \"$OUTDIR/ssh_version.txt\"'"
+        run_with_timeout_skip "ssh-audit $TARGET > \"$OUTDIR/ssh_audit.txt\""
     fi
 
     # RDP
     if grep -qi "ms-wbt-server" "$OUTDIR/nmap_services.txt"; then
         echo "[+] RDP detected"
-        rdpscan $TARGET > "$OUTDIR/rdpscan.txt"
-        ncrack -p 3389 -U /usr/share/wordlists/usernames.txt -P /usr/share/wordlists/rockyou.txt $TARGET -oN "$OUTDIR/rdp_ncrack.txt"
+        run_with_timeout_skip "rdpscan $TARGET > \"$OUTDIR/rdpscan.txt\""
+        run_with_timeout_skip "ncrack -p 3389 -U /usr/share/wordlists/usernames.txt -P /usr/share/wordlists/rockyou.txt $TARGET -oN \"$OUTDIR/rdp_ncrack.txt\""
     fi
 
     # SNMP
     if grep -qi "snmp" "$OUTDIR/nmap_services.txt"; then
         echo "[+] SNMP detected"
-        snmpwalk -v1 -c public $TARGET > "$OUTDIR/snmpwalk.txt"
-        onesixtyone -c /usr/share/doc/onesixtyone/dict.txt $TARGET > "$OUTDIR/onesixtyone.txt"
+        run_with_timeout_skip "snmpwalk -v1 -c public $TARGET > \"$OUTDIR/snmpwalk.txt\""
+        run_with_timeout_skip "onesixtyone -c /usr/share/doc/onesixtyone/dict.txt $TARGET > \"$OUTDIR/onesixtyone.txt\""
     fi
 
     # LDAP
     if grep -qi "ldap" "$OUTDIR/nmap_services.txt"; then
         echo "[+] LDAP detected"
-        ldapsearch -x -H ldap://$TARGET -s base > "$OUTDIR/ldapsearch.txt"
+        run_with_timeout_skip "ldapsearch -x -H ldap://$TARGET -s base > \"$OUTDIR/ldapsearch.txt\""
     fi
 
     # SMTP
     if grep -qi "smtp" "$OUTDIR/nmap_services.txt"; then
         echo "[+] SMTP detected"
-        smtp-user-enum -M VRFY -U /usr/share/wordlists/usernames.txt -t $TARGET > "$OUTDIR/smtp_enum.txt"
+        run_with_timeout_skip "smtp-user-enum -M VRFY -U /usr/share/wordlists/usernames.txt -t $TARGET > \"$OUTDIR/smtp_enum.txt\""
     fi
 
     # RPC
     if grep -qi "rpcbind" "$OUTDIR/nmap_services.txt"; then
         echo "[+] RPC detected"
-        rpcclient -U "" $TARGET -c enumdomusers > "$OUTDIR/rpc_enum.txt"
+        run_with_timeout_skip "rpcclient -U \"\" $TARGET -c enumdomusers > \"$OUTDIR/rpc_enum.txt\""
     fi
 
     # DNS
     if grep -qi "domain" "$OUTDIR/nmap_services.txt"; then
         echo "[+] DNS detected"
-        dig axfr @$TARGET example.com > "$OUTDIR/dns_zone.txt"
-        dnsenum $TARGET > "$OUTDIR/dnsenum.txt"
+        run_with_timeout_skip "dig axfr @$TARGET example.com > \"$OUTDIR/dns_zone.txt\""
+        run_with_timeout_skip "dnsenum $TARGET > \"$OUTDIR/dnsenum.txt\""
     fi
 
     # NFS
     if grep -qi "nfs" "$OUTDIR/nmap_services.txt"; then
         echo "[+] NFS detected"
-        showmount -e $TARGET > "$OUTDIR/nfs_exports.txt"
+        run_with_timeout_skip "showmount -e $TARGET > \"$OUTDIR/nfs_exports.txt\""
     fi
 }
 
@@ -150,7 +172,7 @@ function run_searchsploit {
             if [ -n "$service_line" ]; then
                 echo "[+] Searching: $service_line"
                 echo "### $service_line" >> "$EXPLOIT_OUT"
-                searchsploit "$service_line" >> "$EXPLOIT_OUT"
+                run_with_timeout_skip "searchsploit \"$service_line\"" 60
                 echo >> "$EXPLOIT_OUT"
             fi
         fi

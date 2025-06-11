@@ -1,0 +1,40 @@
+To integrate SharpHound collection in your Python script with run_with_timeout_skip:
+Assuming you are executing SharpHound from a command line (like on a Windows machine or a remote host via an agent), here’s how you might do it:
+
+python
+Copy
+Edit
+def run_bloodhound_collection(collection_method="All", timeout=600):
+    """
+    Run SharpHound BloodHound data collection with timeout.
+
+    Args:
+        collection_method (str): SharpHound collection method (e.g., 'All', 'Session', 'ACL').
+        timeout (int): Timeout for the collector run in seconds.
+
+    Returns:
+        str: Result or timeout/error message.
+    """
+
+    # Example command for SharpHound execution - adjust path/command as needed
+    # SharpHound.exe supports flags like -CollectionMethod All, -Domain example.com, etc.
+    cmd = f"SharpHound.exe -CollectionMethod {collection_method}"
+
+    out, err = run_with_timeout_skip(cmd, timeout)
+
+    if err:
+        return f"Error or timeout running BloodHound collection: {err}"
+    else:
+        return f"BloodHound collection completed:\n{out}"
+
+# Example usage
+if __name__ == "__main__":
+    print(run_bloodhound_collection("All", timeout=900))
+Notes:
+You must have SharpHound.exe accessible from where the script runs.
+
+You can customize parameters for domain, output directory, and collection method.
+
+If running remotely, you may need to trigger SharpHound through a remote command execution method (like WinRM, PSExec, or an agent).
+
+After collection, you’d typically ingest the .zip files into BloodHound GUI or via the BloodHound API, which can be scripted but is more complex.
