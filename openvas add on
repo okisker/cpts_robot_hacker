@@ -1,0 +1,44 @@
+import subprocess
+import time
+
+def run_with_timeout_skip(cmd, timeout):
+    try:
+        proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        try:
+            outs, errs = proc.communicate(timeout=timeout)
+            return outs.decode(), errs.decode()
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            return None, f"Command timed out after {timeout} seconds"
+    except Exception as e:
+        return None, str(e)
+
+def run_openvas_scan(task_id, timeout=600):
+    """
+    Run an OpenVAS scan task by its ID and wait for completion or timeout.
+
+    Args:
+        task_id (str): OpenVAS scan task ID.
+        timeout (int): Timeout in seconds to wait for scan.
+
+    Returns:
+        str: Scan result or timeout message.
+    """
+
+    # Example command to start a scan task by ID using gvm-cli (adjust based on your setup)
+    start_scan_cmd = f"gvm-cli ssh --xml '<start_task task_id=\"{task_id}\"/>'"
+
+    # Run the command with timeout
+    out, err = run_with_timeout_skip(start_scan_cmd, timeout)
+
+    if err:
+        return f"Error or timeout running OpenVAS scan: {err}"
+    else:
+        # You can add extra steps here to fetch the report, etc.
+        return f"OpenVAS scan started successfully:\n{out}"
+
+# Example usage
+if __name__ == "__main__":
+    # Replace with your actual OpenVAS task ID
+    task_id = "your-openvas-task-id"
+    print(run_openvas_scan(task_id, timeout=600))
