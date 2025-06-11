@@ -37,15 +37,18 @@ fi
 
 mkdir -p "$OUTDIR"
 
-# Run full Nmap scan
-echo "[*] Running full TCP Nmap scan on $TARGET..."
-nmap -p- -T4 -oN "$NMAP_OUT" "$TARGET"
+# NMAP
+# TCP Full scan
+nmap -p- -T4 -oN "$OUTDIR/nmap_tcp.txt" "$TARGET"
 
-# Extract open ports
-PORTS=$(grep ^[0-9] "$NMAP_OUT" | cut -d '/' -f1 | paste -sd "," -)
+# Extract TCP ports
+TCP_PORTS=$(grep '/tcp' "$OUTDIR/nmap_tcp.txt" | cut -d '/' -f1 | paste -sd ',' -)
 
-# Run service version detection
-nmap -sC -sV -p $PORTS -oN "$OUTDIR/nmap_services.txt" "$TARGET"
+# TCP Service detection
+nmap -sC -sV -p $TCP_PORTS -oN "$OUTDIR/nmap_tcp_services.txt" "$TARGET"
+
+# UDP Top 100 scan (adjust as needed)
+nmap -sU --top-ports 100 -T4 -oN "$OUTDIR/nmap_udp.txt" "$TARGET"
 
 # Enumeration tools
 function run_enum_tools {
@@ -54,20 +57,24 @@ function run_enum_tools {
     # HTTP/HTTPS
     if grep -qiE "http|https" "$OUTDIR/nmap_services.txt"; then
         echo "[+] HTTP detected"
-        whatweb http://$TARGET > "$OUTDIR/whatweb.txt"
-        httpx -u http://$TARGET -status-code -tech-detect -title -web-server -favicon -tls -o "$OUTDIR/httpx.txt"
+        echo "http://$TARGET" > urls.txt
+        echo "https://$TARGET" >> urls.txt
+        whatweb -i urls.txt --log-verbose="$OUTDIR/whatweb.txt"
+        httpx -l urls.txt -status-code -tech-detect -title -web-server -favicon -o "$OUTDIR/httpx.txt"
         gobuster dir -u http://$TARGET -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -o "$OUTDIR/gobuster_http.txt"
-        nuclei -u http://$TARGET -silent -o "$NUCLEI_OUT"
-        nikto -h http://$TARGET -output "$OUTDIR/nikto.txt"
-        feroxbuster -u http://$TARGET -o "$OUTDIR/feroxbuster.txt"
-        ffuf -u http://$TARGET/FUZZ -w /usr/share/wordlists/dirb/common.txt -o "$OUTDIR/ffuf.txt"
+        gobuster dir -u https://$TARGET -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -o "$OUTDIR/gobuster_https.txt"
+        nuclei -list urls.txt -silent -o "$NUCLEI_OUT"
+        nikto -h urls.txt -output "$OUTDIR/nikto.txt" -Format txt
+        feroxbuster -u urls.txt -o "$OUTDIR/feroxbuster.txt"
+        ffuf -u http://$TARGET/FUZZ -w /usr/share/wordlists/dirb/common.txt -o "$OUTDIR/ffuf.txt" -c -fc 404,403
+        ffuf -u https://$TARGET/FUZZ -w /usr/share/wordlists/dirb/common.txt -o "$OUTDIR/ffufs.txt" -c -fc 404,403
     fi
 
     # FTP
     if grep -qi "ftp" "$OUTDIR/nmap_services.txt"; then
         echo "[+] FTP detected"
         echo -e "open $TARGET\nanonymous\nanonymous\nls\nbye" | ftp -n > "$OUTDIR/ftp_check.txt"
-        hydra -l anonymous -P /usr/share/wordlists/rockyou.txt ftp://$TARGET -o "$OUTDIR/ftp_hydra.txt"
+        hydra -l anonymous -P /usr/share/wordlists/rockyou.txt -t 4 ftp://$TARGET -o "$OUTDIR/ftp_hydra.txt"
     fi
 
     # SMB
@@ -79,7 +86,7 @@ function run_enum_tools {
         smbmap -H $TARGET > "$OUTDIR/smbmap.txt"
     fi
 
-    # SSH
+    # SSH I stopped checking syntax here
     if grep -qi "ssh" "$OUTDIR/nmap_services.txt"; then
         echo "[+] SSH detected"
         ssh -v -o BatchMode=yes -o ConnectTimeout=3 user@$TARGET 2>&1 | grep "SSH-" > "$OUTDIR/ssh_version.txt"
