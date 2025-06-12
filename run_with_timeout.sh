@@ -55,21 +55,102 @@ run_with_timeout_skip() {
     return $status
 }
 
+# Hacker green
+GREEN="\033[1;32m"
+RESET="\033[0m"
+
+# Function to print ASCII art
+print_hacker_banner() {
+    local word="$1"
+    echo -e "${GREEN}"
+    case "$word" in
+        "NMAP")
+            cat << "EOF"
+  _  _ __  __   _   ___ 
+ | \| |  \/  | /_\ | _ \
+ | .` | |\/| |/ _ \|  _/
+ |_|\_|_|  |_/_/ \_\_|  
+EOF
+            ;;
+        "WHATWEB")
+            cat << "EOF"
+ __      ___  _   _ _______      _____ ___ 
+ \ \    / / || | /_\_   _\ \    / / __| _ )
+  \ \/\/ /| __ |/ _ \| |  \ \/\/ /| _|| _ \
+   \_/\_/ |_||_/_/ \_\_|   \_/\_/ |___|___/	                           
+EOF
+            ;;
+        "HTTPX")
+            cat << "EOF"
+  _  _ _____ _____ _____  __
+ | || |_   _|_   _| _ \ \/ /
+ | __ | | |   | | |  _/>  < 
+ |_||_| |_|   |_| |_| /_/\_\     
+EOF
+            ;;
+        "GOBUSTER")
+            cat << "EOF"
+   ___  ___  ___ _   _ ___ _____ ___ ___ 
+  / __|/ _ \| _ ) | | / __|_   _| __| _ \
+ | (_ | (_) | _ \ |_| \__ \ | | | _||   /
+  \___|\___/|___/\___/|___/ |_| |___|_|_\                                                  
+EOF
+            ;;
+        "NUCLEI")
+            cat << "EOF"
+  _  _ _   _  ___ _    ___ ___ 
+ | \| | | | |/ __| |  | __|_ _|
+ | .` | |_| | (__| |__| _| | | 
+ |_|\_|\___/ \___|____|___|___|                     
+EOF
+            ;;
+        "NIKTO")
+            cat << "EOF"
+  _  _ ___ _  _______ ___  
+ | \| |_ _| |/ /_   _/ _ \ 
+ | .` || || ' <  | || (_) |
+ |_|\_|___|_|\_\ |_| \___/                 
+EOF
+            ;;
+        "FEROXBUSTER")
+            cat << "EOF"
+  ___ ___ ___  _____  _____ _   _ ___ _____ ___ ___ 
+ | __| __| _ \/ _ \ \/ / _ ) | | / __|_   _| __| _ \
+ | _|| _||   / (_) >  <| _ \ |_| \__ \ | | | _||   /
+ |_| |___|_|_\\___/_/\_\___/\___/|___/ |_| |___|_|_\                                
+EOF
+            ;;
+        "FUFF")
+            cat << "EOF"
+  ___ _   _ ___ ___ 
+ | __| | | | __| __|
+ | _|| |_| | _|| _| 
+ |_|  \___/|_| |_|  
+EOF
+            ;;
+        *)
+            echo "No ASCII art for: $word"
+            ;;
+    esac
+    echo -e "${RESET}"
+}
+
 # NMAP
 # TCP Full scan
-nmap -p- -T4 -oN \"$OUTDIR/nmap_tcp.txt\" \"$TARGET\"
+print_hacker_banner "NMAP"
+nmap -p- -T4 -oN "$OUTDIR/nmap_tcp.txt" "$TARGET"
 
 # Extract TCP ports
 TCP_PORTS=$(grep '/tcp' "$OUTDIR/nmap_tcp.txt" | cut -d '/' -f1 | paste -sd ',' -)
 
 # TCP Service detection
-nmap -sC -sV -p $TCP_PORTS -oN \"$OUTDIR/nmap_tcp_services.txt\" \"$TARGET\"
+nmap -sC -sV -p $TCP_PORTS -oN "$OUTDIR/nmap_tcp_services.txt" "$TARGET"
 
 # UDP Top 100 scan (adjust as needed)
-nmap -sU --top-ports 100 -T4 -oN \"$OUTDIR/nmap_udp.txt\" \"$TARGET\"
+nmap -sU --top-ports 100 -T4 -oN "$OUTDIR/nmap_udp.txt" "$TARGET"
 
 # Save combined nmap services output for later checks
-cat "$OUTDIR/nmap_tcp_services.txt" "$OUTDIR/nmap_udp.txt" "$OUTDIR/nmap_tcp.txt" > "$OUTDIR/nmap_services.txt"
+cat "$OUTDIR/nmap_tcp_services.txt" "$OUTDIR/nmap_udp.txt" "$OUTDIR/nmap_tcp.txt"> "$OUTDIR/nmap_services.txt"
 
 # Enumeration tools
 function run_enum_tools {
@@ -80,16 +161,25 @@ function run_enum_tools {
         echo "[+] HTTP detected"
         echo "http://$TARGET" > urls.txt
         echo "https://$TARGET" >> urls.txt
-
+	
+	print_hacker_banner "WHATWEB"
         run_with_timeout_skip "whatweb -i urls.txt --log-verbose=\"$OUTDIR/whatweb.txt\""
-        run_with_timeout_skip "httpx -l urls.txt -status-code -tech-detect -title -web-server -favicon -o \"$OUTDIR/httpx.txt\""
+        print_hacker_banner "HTTPX"
+        run_with_timeout_skip "httpx http://$TARGET --follow-redirects --download \"$OUTDIR/httpx.txt\""
+        print_hacker_banner "GOBUSTER"
         run_with_timeout_skip "gobuster dir -u http://$TARGET -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -o \"$OUTDIR/gobuster_http.txt\""
         run_with_timeout_skip "gobuster dir -u https://$TARGET -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -o \"$OUTDIR/gobuster_https.txt\""
+        print_hacker_banner "NUCLEI"
         run_with_timeout_skip "nuclei -list urls.txt -silent -o \"$NUCLEI_OUT\""
-        run_with_timeout_skip "nikto -h urls.txt -output \"$OUTDIR/nikto.txt\" -Format txt"
-        run_with_timeout_skip "feroxbuster -u urls.txt -o \"$OUTDIR/feroxbuster.txt\""
-        run_with_timeout_skip "ffuf -u http://$TARGET/FUZZ -w /usr/share/wordlists/dirb/common.txt -o \"$OUTDIR/ffuf.txt\" -c -fc 404,403"
-        run_with_timeout_skip "ffuf -u https://$TARGET/FUZZ -w /usr/share/wordlists/dirb/common.txt -o \"$OUTDIR/ffufs.txt\" -c -fc 404,403"
+        print_hacker_banner "NIKTO"
+        run_with_timeout_skip "nikto -h urls.txt -D -o \"$OUTDIR/nikto.txt\" -F txt"
+        print_hacker_banner "FEROXBUSTER"
+        run_with_timeout_skip "feroxbuster -u http://$TARGET -o \"$OUTDIR/feroxbuster.txt\""        
+        run_with_timeout_skip "feroxbuster -u https://$TARGET -o \"$OUTDIR/feroxbuster_https.txt\""
+        print_hacker_banner "FUFF"
+        run_with_timeout_skip "ffuf -u http://$TARGET/FUZZ -w /usr/share/wordlists/dirb/common.txt -v -o \"$OUTDIR/ffuf.txt\" -c -fc 404,403"
+        run_with_timeout_skip "ffuf -u https://$TARGET/FUZZ -w /usr/share/wordlists/dirb/common.txt -v -o \"$OUTDIR/ffufs.txt\" -c -fc 404,403"
+        echo "HTTP scan done!"
     fi
 
     # FTP
@@ -207,6 +297,3 @@ else
 fi
 
 echo "[*] Done. All results saved in $OUTDIR/"
-
-# Suggested installation command:
-# bash install_recon_tools.sh
