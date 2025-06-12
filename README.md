@@ -3,5 +3,6 @@ notes to self:
 - add wordpress
 -   - sudo apt install wpscan
 -   - wpscan --url https://targetsite.com --enumerate vp,vt,cb,dbe,u
-- sudo apt install gowitness
-- gowitness file -f urls.txt
+- add gowitness
+- - sudo apt install gowitness
+- - gowitness file -f urls.txt
