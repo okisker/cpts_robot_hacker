@@ -41,17 +41,21 @@ mkdir -p "$OUTDIR"
 run_with_timeout_skip() {
     local cmd="$1"
     local timeout_duration="${2:-300}"  # default 300 seconds = 5 minutes
+    echo "[*] Running (with timeout ${timeout_duration}s): $cmd"
+   
 
-    trap 'echo -e "\n[!] Skipping current command due to Ctrl+C"; return 130' SIGINT
+    #trap 'echo -e "\n[!] Skipping current command due to Ctrl+C"; return 130' SIGINT
 
-    timeout "${timeout_duration}s" bash -c "$cmd"
+    timeout "${timeout_duration}s" bash -c "exec $cmd"
     local status=$?
 
     if [ $status -eq 124 ]; then
         echo "[!] Command timed out after ${timeout_duration}s and was killed."
+    elif [ $status -eq 130 ]; then
+    	echo "[!] Command skipped by user (Ctrl+C)."
     fi
 
-    trap - SIGINT
+    #trap - SIGINT
     return $status
 }
 
@@ -157,7 +161,7 @@ function run_enum_tools {
     echo "[*] Checking services for enumeration..."
 
     # HTTP/HTTPS
-    if grep -qiE "http|https" "$OUTDIR/nmap_services.txt"; then
+    if grep -iE '^[0-9]+/(tcp|udp).*http' "$OUTDIR/nmap_services.txt" > /dev/null; then
         echo "[+] HTTP detected"
         echo "http://$TARGET" > urls.txt
         echo "https://$TARGET" >> urls.txt
@@ -172,13 +176,13 @@ function run_enum_tools {
         print_hacker_banner "NUCLEI"
         run_with_timeout_skip "nuclei -list urls.txt -silent -o \"$NUCLEI_OUT\""
         print_hacker_banner "NIKTO"
-        run_with_timeout_skip "nikto -h urls.txt -D -o \"$OUTDIR/nikto.txt\" -F txt"
+        run_with_timeout_skip "nikto -h urls.txt -Format txt -output \"$OUTDIR/nikto.txt\" -Display V"
         print_hacker_banner "FEROXBUSTER"
-        run_with_timeout_skip "feroxbuster -u http://$TARGET -o \"$OUTDIR/feroxbuster.txt\""        
-        run_with_timeout_skip "feroxbuster -u https://$TARGET -o \"$OUTDIR/feroxbuster_https.txt\""
-        print_hacker_banner "FUFF"
-        run_with_timeout_skip "ffuf -u http://$TARGET/FUZZ -w /usr/share/wordlists/dirb/common.txt -v -o \"$OUTDIR/ffuf.txt\" -c -fc 404,403"
-        run_with_timeout_skip "ffuf -u https://$TARGET/FUZZ -w /usr/share/wordlists/dirb/common.txt -v -o \"$OUTDIR/ffufs.txt\" -c -fc 404,403"
+        run_with_timeout_skip "feroxbuster -u http://$TARGET --scan-dir-listings -o \"$OUTDIR/feroxbuster.txt\""        
+        run_with_timeout_skip "feroxbuster -u https://$TARGET --scan-dir-listings -o \"$OUTDIR/feroxbuster_https.txt\""
+        #print_hacker_banner "FUFF"
+        #run_with_timeout_skip "ffuf -u http://$TARGET/FUZZ -w /usr/share/wordlists/dirb/common.txt -v -o \"$OUTDIR/ffuf.txt\" -c -fc 404,403"
+        #run_with_timeout_skip "ffuf -u https://$TARGET/FUZZ -w /usr/share/wordlists/dirb/common.txt -v -o \"$OUTDIR/ffufs.txt\" -c -fc 404,403"
         echo "HTTP scan done!"
     fi
 
@@ -297,3 +301,4 @@ else
 fi
 
 echo "[*] Done. All results saved in $OUTDIR/"
+
